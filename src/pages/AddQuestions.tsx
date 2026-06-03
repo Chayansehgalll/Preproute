@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
 
@@ -42,6 +42,8 @@ export default function AddQuestions() {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState("");
+  const questionRef = useRef<HTMLTextAreaElement | null>(null);
+  const explanationRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -62,6 +64,70 @@ export default function AddQuestions() {
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2000);
+  };
+
+  const applyFormat = (field: "question" | "explanation", before: string, after = before) => {
+    const ref = field === "question" ? questionRef.current : explanationRef.current;
+    const value = current[field] || "";
+    const start = ref?.selectionStart ?? value.length;
+    const end = ref?.selectionEnd ?? value.length;
+    const selected = value.slice(start, end) || "text";
+    const next = `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`;
+    setCurrent({ ...current, [field]: next });
+    requestAnimationFrame(() => {
+      ref?.focus();
+      ref?.setSelectionRange(start + before.length, start + before.length + selected.length);
+    });
+  };
+
+  const handleImageUpload = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setErrors({ media: "Please upload an image file" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCurrent({ ...current, media_url: String(reader.result || "") });
+      setErrors((prev) => ({ ...prev, media: "" }));
+      showToast("Image added to question");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCsvUpload = async (file?: File) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const imported = parseQuestionsCsv(text).map((q: Question) => ({
+        ...q,
+        difficulty: q.difficulty || "medium",
+      }));
+      if (imported.length === 0) {
+        setErrors({ csv: "CSV has no valid question rows" });
+        return;
+      }
+      setQuestions((prev) => [...prev, ...imported]);
+      setErrors((prev) => ({ ...prev, csv: "" }));
+      showToast(`${imported.length} questions imported from CSV`);
+    } catch (err: any) {
+      setErrors({ csv: err.message || "Unable to read CSV file" });
+    }
+  };
+
+  const downloadCsvTemplate = () => {
+    const csv = [
+      "question,option1,option2,option3,option4,correct_option,explanation,difficulty,topic,sub_topic,media_url",
+      '"What is 2 + 2?","3","4","5","6","option2","Basic addition","easy","","",""',
+      '"Which planet is known as the Red Planet?","Earth","Mars","Jupiter","Venus","option2","Mars is called the Red Planet","medium","","","https://example.com/mars.png"',
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "preproute-questions-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const validateQ = (q: Question) => {
@@ -159,6 +225,37 @@ export default function AddQuestions() {
         </div>
       </div>
 
+      {/* CSV Import */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h3 className="font-semibold text-slate-800">Upload Questions Through CSV</h3>
+          <p className="text-sm text-slate-500 mt-1">
+            Import MCQs in bulk using columns: question, option1, option2, option3, option4, correct_option, explanation, difficulty, topic, sub_topic, media_url.
+          </p>
+          {errors.csv && <div className="text-xs text-red-500 mt-2">{errors.csv}</div>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={downloadCsvTemplate}
+            className="px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100"
+          >
+            Download Template
+          </button>
+          <label className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 cursor-pointer shadow-sm">
+            Upload CSV
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                handleCsvUpload(e.target.files?.[0]);
+                e.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Question Form */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -173,7 +270,15 @@ export default function AddQuestions() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Question <span className="text-red-500">*</span></label>
+            <FormattingBar
+              onBold={() => applyFormat("question", "**")}
+              onItalic={() => applyFormat("question", "*")}
+              onUnderline={() => applyFormat("question", "<u>", "</u>")}
+              onCode={() => applyFormat("question", "`")}
+              onList={() => applyFormat("question", "\n- ", "")}
+            />
             <textarea
+              ref={questionRef}
               value={current.question}
               onChange={(e) => setCurrent({ ...current, question: e.target.value })}
               rows={3}
@@ -210,7 +315,16 @@ export default function AddQuestions() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Explanation <span className="text-slate-400 text-xs">(optional)</span></label>
+            <FormattingBar
+              compact
+              onBold={() => applyFormat("explanation", "**")}
+              onItalic={() => applyFormat("explanation", "*")}
+              onUnderline={() => applyFormat("explanation", "<u>", "</u>")}
+              onCode={() => applyFormat("explanation", "`")}
+              onList={() => applyFormat("explanation", "\n- ", "")}
+            />
             <textarea
+              ref={explanationRef}
               value={current.explanation}
               onChange={(e) => setCurrent({ ...current, explanation: e.target.value })}
               rows={2}
@@ -258,12 +372,33 @@ export default function AddQuestions() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Media URL <span className="text-slate-400 text-xs">(optional)</span></label>
-            <input
-              value={current.media_url}
-              onChange={(e) => setCurrent({ ...current, media_url: e.target.value })}
-              placeholder="https://..."
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={current.media_url}
+                onChange={(e) => setCurrent({ ...current, media_url: e.target.value })}
+                placeholder="https://... or upload image"
+                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <label className="px-4 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 cursor-pointer text-center">
+                Upload Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    handleImageUpload(e.target.files?.[0]);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {errors.media && <div className="text-xs text-red-500 mt-1">{errors.media}</div>}
+            {current.media_url && (
+              <div className="mt-3 border border-slate-200 rounded-lg p-3 bg-slate-50">
+                <div className="text-xs text-slate-500 mb-2">Image preview</div>
+                <img src={current.media_url} alt="Question media preview" className="max-h-44 rounded-md object-contain bg-white border border-slate-100" />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
@@ -306,6 +441,7 @@ export default function AddQuestions() {
                   </div>
                   <div className="flex gap-2 mt-2 text-xs">
                     <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600">{q.difficulty}</span>
+                    {q.media_url && <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">Image added</span>}
                     {q.explanation && <span className="text-slate-500 italic truncate">Explanation: {q.explanation}</span>}
                   </div>
                 </div>
@@ -350,4 +486,148 @@ export default function AddQuestions() {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return <span className="px-2.5 py-1 bg-white/70 rounded-md border border-indigo-100 text-indigo-800">{children}</span>;
+}
+
+function FormattingBar({
+  onBold,
+  onItalic,
+  onUnderline,
+  onCode,
+  onList,
+  compact,
+}: {
+  onBold: () => void;
+  onItalic: () => void;
+  onUnderline: () => void;
+  onCode: () => void;
+  onList: () => void;
+  compact?: boolean;
+}) {
+  const buttons = [
+    { label: "B", title: "Bold", onClick: onBold, className: "font-bold" },
+    { label: "I", title: "Italic", onClick: onItalic, className: "italic" },
+    { label: "U", title: "Underline", onClick: onUnderline, className: "underline" },
+    { label: "<>", title: "Code", onClick: onCode, className: "font-mono" },
+    { label: "List", title: "Bullet list", onClick: onList, className: "" },
+  ];
+  return (
+    <div className={`mb-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 ${compact ? "scale-95 origin-left" : ""}`}>
+      {buttons.map((button) => (
+        <button
+          key={button.title}
+          type="button"
+          title={button.title}
+          onClick={button.onClick}
+          className={`px-2.5 py-1 text-xs rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 ${button.className}`}
+        >
+          {button.label}
+        </button>
+      ))}
+      <span className="px-2 text-[11px] text-slate-400 hidden sm:inline">
+        Select text, then click a format.
+      </span>
+    </div>
+  );
+}
+
+function parseQuestionsCsv(csv: string): Question[] {
+  const rows = parseCsvRows(csv.trim());
+  if (rows.length < 2) return [];
+  const headers = rows[0].map((h) => normalizeHeader(h));
+  const required = ["question", "option1", "option2", "option3", "option4", "correct_option"];
+  const missing = required.filter((key) => !headers.includes(key));
+  if (missing.length > 0) {
+    throw new Error(`Missing required CSV columns: ${missing.join(", ")}`);
+  }
+
+  return rows
+    .slice(1)
+    .map((row, rowIndex) => {
+      const record: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        record[header] = row[index]?.trim() || "";
+      });
+      const question: Question = {
+        question: record.question || "",
+        option1: record.option1 || "",
+        option2: record.option2 || "",
+        option3: record.option3 || "",
+        option4: record.option4 || "",
+        correct_option: normalizeCorrectOption(record.correct_option),
+        explanation: record.explanation || "",
+        difficulty: normalizeDifficulty(record.difficulty),
+        topic: record.topic || "",
+        sub_topic: record.sub_topic || record.subtopic || "",
+        media_url: record.media_url || record.media || "",
+      };
+      if (!question.question || !question.option1 || !question.option2 || !question.option3 || !question.option4) {
+        throw new Error(`CSV row ${rowIndex + 2} is missing question/options data`);
+      }
+      return question;
+    })
+    .filter((q) => q.question);
+}
+
+function parseCsvRows(input: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i];
+    const next = input[i + 1];
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        cell += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") i += 1;
+      row.push(cell);
+      if (row.some((value) => value.trim())) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  row.push(cell);
+  if (row.some((value) => value.trim())) rows.push(row);
+  return rows;
+}
+
+function normalizeHeader(value: string) {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function normalizeCorrectOption(value: string) {
+  const v = value.trim().toLowerCase();
+  const map: Record<string, string> = {
+    "1": "option1",
+    a: "option1",
+    option1: "option1",
+    "2": "option2",
+    b: "option2",
+    option2: "option2",
+    "3": "option3",
+    c: "option3",
+    option3: "option3",
+    "4": "option4",
+    d: "option4",
+    option4: "option4",
+  };
+  return map[v] || "option1";
+}
+
+function normalizeDifficulty(value: string) {
+  const v = value.trim().toLowerCase();
+  if (["easy", "medium", "hard"].includes(v)) return v;
+  if (v === "difficult") return "hard";
+  return "medium";
 }

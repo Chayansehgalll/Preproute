@@ -367,6 +367,64 @@ export default function PreviewPublish() {
             </div>
           )}
 
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-slate-800">Question Preview</div>
+                <div className="text-xs text-slate-500">Final published question output with options and media.</div>
+              </div>
+              <span className="text-xs text-slate-500">{questions.length} questions</span>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+              {questions.length === 0 ? (
+                <div className="p-5 text-sm text-slate-400 text-center">No questions available to preview.</div>
+              ) : (
+                questions.map((q: any, index: number) => (
+                  <div key={q.id || index} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-800 whitespace-pre-wrap">{q.question}</div>
+                        {q.media_url && (
+                          <img
+                            src={q.media_url}
+                            alt={`Question ${index + 1} media`}
+                            className="mt-3 max-h-44 rounded-lg border border-slate-200 object-contain bg-white"
+                          />
+                        )}
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                          {[q.option1, q.option2, q.option3, q.option4].map((option: string, optionIndex: number) => {
+                            const key = `option${optionIndex + 1}`;
+                            const isCorrect = q.correct_option === key;
+                            return (
+                              <div
+                                key={key}
+                                className={`px-3 py-2 rounded-lg border ${
+                                  isCorrect
+                                    ? "bg-emerald-50 border-emerald-200 text-emerald-700 font-medium"
+                                    : "bg-white border-slate-200 text-slate-600"
+                                }`}
+                              >
+                                {String.fromCharCode(65 + optionIndex)}. {option} {isCorrect && "✓"}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {q.explanation && (
+                          <div className="mt-3 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 whitespace-pre-wrap">
+                            <span className="font-semibold">Explanation:</span> {q.explanation}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
             <button
