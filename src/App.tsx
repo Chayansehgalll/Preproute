@@ -274,12 +274,16 @@ function Breadcrumbs() {
 function Logo() {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z" fill="currentColor" />
-        </svg>
-      </div>
-      <div className="font-bold text-slate-800 text-lg">
+      <img
+        src="/src/images/preproute_logo.jpeg"
+        alt="PrepRoute"
+        className="h-20 w-auto object-contain"
+        onError={(event) => {
+          event.currentTarget.style.display = "none";
+          event.currentTarget.nextElementSibling?.classList.remove("hidden");
+        }}
+      />
+      <div className="hidden font-bold text-slate-800 text-lg">
         Prep<span className="text-indigo-600">Route</span>
       </div>
     </div>

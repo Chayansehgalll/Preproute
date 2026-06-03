@@ -134,7 +134,7 @@ export default function Dashboard() {
             </div>
             <p className="text-slate-500 mb-4">No tests found. Create your first test to get started.</p>
             <button
-              onClick={() => navigate("/tests/new")}
+              onClick={() => navigate("/test-creation")}
               className="text-indigo-600 font-medium text-sm hover:underline"
             >
               + Create New Test

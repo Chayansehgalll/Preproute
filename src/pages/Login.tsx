@@ -48,12 +48,16 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-sm p-10">
           <div className="mb-8 flex justify-center">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z" fill="currentColor" />
-                </svg>
-              </div>
-              <div className="font-bold text-slate-800 text-xl">
+              <img
+                src="/src/images/preproute_logo.jpeg"
+                alt="PrepRoute"
+                className="h-24 w-auto object-contain"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                  event.currentTarget.nextElementSibling?.classList.remove("hidden");
+                }}
+              />
+              <div className="hidden font-bold text-slate-800 text-xl">
                 Prep<span className="text-indigo-600">Route</span>
               </div>
             </div>
