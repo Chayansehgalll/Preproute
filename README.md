@@ -258,10 +258,6 @@ npm run preview  # Preview production build
 - Use Tailwind utility classes for styling
 - Add comments for complex logic
 
-## 📄 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - [React](https://react.dev/) - UI Library
@@ -270,5 +266,23 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 - [React Router](https://reactrouter.com/) - Navigation
 
 ---
+
+## Future Scope
+
+### Test Tracking Module
+
+The sidebar includes a disabled **Test Tracking** entry as a planned enhancement. This module can be added later to help admins monitor how published and scheduled tests perform after students begin attempting them.
+
+![Future Test Tracking Screen](./src/images/test_tracking.png)
+
+Planned capabilities:
+
+- Track live, scheduled, completed, and draft tests from one monitoring screen
+- Show total attempts, completion count, average score, average time spent, and flagged responses
+- Provide filters for status, subject, date range, and search by test name
+- Add per-test progress bars for attempt rate and completion rate
+- Include a review queue for questions with high wrong-answer rates or flagged responses
+- Support drill-down views for student-wise performance, question analytics, and export reports
+
 
 Made with ❤️ by the CS
