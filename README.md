@@ -8,7 +8,6 @@
 A comprehensive test management application for educators and administrators to create, manage, and publish tests for students. Built with React, TypeScript, Vite, and Tailwind CSS.
 
 ![Dashboard](./src/images/dashboard.png)
-![PrepRoute Dashboard](https://preproute-cs.vercel.app/)
 
 ## ✨ Features
 
