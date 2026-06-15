@@ -88,11 +88,11 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
               />
             </div>
 
-            <div className="text-right">
+            {/* <div className="text-right">
               <button type="button" className="text-xs text-indigo-600 hover:underline">
                 Forgot password?
               </button>
-            </div>
+            </div> */}
 
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
