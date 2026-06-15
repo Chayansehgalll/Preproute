@@ -52,13 +52,13 @@ export default function AddQuestions() {
       return r.data;
     }).then((t: any) => {
       if (t?.subject) {
-        api.getTopics(t.subject).then((r: any) => setTopics(r.data));
+        api.getTopics(t.subject).then((r: any) => setTopics(r?.data || []));
         if (t.topics?.length) {
-          api.getSubTopicsByTopics(t.topics).then((r: any) => setSubTopics(r.data));
+          api.getSubTopicsByTopics(t.topics).then((r: any) => setSubTopics(r?.data || []));
         }
       }
     });
-    api.getQuestionsByTest(id).then((r: any) => setQuestions(r.data));
+    api.getQuestionsByTest(id).then((r: any) => setQuestions(r?.data || []));
   }, [id]);
 
   const showToast = (msg: string) => {
@@ -179,12 +179,38 @@ export default function AddQuestions() {
       setErrors({ _: "Please add at least one question" });
       return;
     }
-    const newQs = questions.filter((q) => !q.id);
-    if (newQs.length > 0) {
-      await api.bulkCreateQuestions(id!, newQs);
+
+    try {
+      const newQs = questions
+        .filter((q) => !q.id)
+        .map((q) => ({
+          test_id: id!,
+          subject: test.subject, // Automatically maps the parent test's subject UUID
+          type: "mcq", // Passes the question type string expected by the database
+          question: q.question.trim(),
+          option1: q.option1.trim(),
+          option2: q.option2.trim(),
+          option3: q.option3.trim(),
+          option4: q.option4.trim(),
+          correct_option: q.correct_option,
+          explanation: q.explanation.trim() || "",
+          difficulty: q.difficulty === "hard" ? "difficult" : q.difficulty,
+          
+          // Use fallback empty strings instead of nulls to pass validation checks
+          topic: q.topic || "",
+          sub_topic: q.sub_topic || "",
+          media_url: q.media_url || "",
+        }));
+
+      if (newQs.length > 0) {
+        await api.bulkCreateQuestions(id!, newQs);
+      }
+      
+      await api.updateTest(id!, { total_questions: questions.length });
+      navigate(`/tests/${id}/preview`);
+    } catch (err: any) {
+      setErrors({ _: err.message || "Failed to save questions to database." });
     }
-    await api.updateTest(id!, { total_questions: questions.length });
-    navigate(`/tests/${id}/preview`);
   };
 
   if (!test) {
@@ -399,6 +425,7 @@ export default function AddQuestions() {
 
           <div className="flex justify-end gap-3 pt-2">
             <button
+              type="button"
               onClick={addOrUpdate}
               className="px-5 py-2.5 bg-indigo-50 text-indigo-700 font-medium text-sm rounded-lg hover:bg-indigo-100 transition border border-indigo-200"
             >

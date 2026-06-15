@@ -59,7 +59,7 @@ export default function PreviewPublish() {
     Promise.all([api.getTest(id), api.getQuestionsByTest(id)])
       .then(([r1, r2]: any) => {
         setTest(r1.data);
-        setQuestions(r2.data);
+        setQuestions(r2.data || []);
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -69,22 +69,28 @@ export default function PreviewPublish() {
   const publish = async () => {
     let live_config: any = { liveUntil: config.liveUntil };
     let isFutureScheduled = false;
+    
     if (config.publishMode === "scheduled") {
       const t24 = to24(config.scheduleHour, config.scheduleMinute, config.scheduleMeridiem);
       const scheduledAt = `${config.scheduleDate}T${t24}`;
       live_config.scheduledAt = scheduledAt;
       isFutureScheduled = new Date(scheduledAt) > new Date();
     }
+    
     if (config.liveUntil === "custom") {
       const t24 = to24(config.endHour, config.endMinute, config.endMeridiem);
       live_config.endAt = `${config.endDate}T${t24}`;
     }
+    
     const targetStatus = isFutureScheduled ? "scheduled" : "live";
     const previouslyPublished = test.status === "live" || test.status === "scheduled";
+    
     await api.publishTest(id!, live_config, targetStatus);
+    
     const message = previouslyPublished
         ? isFutureScheduled ? "Test rescheduled successfully!" : "Test re-published successfully!"
         : isFutureScheduled ? "Test scheduled successfully!" : "Test published successfully!";
+        
     setSuccessMsg(message);
     addNotification({
       type: "success",

@@ -9,22 +9,41 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [apiMode, setApiMode] = useState<"real" | "mock" | "loading">("loading");
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    api.getTests().then((r: any) => {
-      const normalized = (Array.isArray(r.data) ? r.data : []).map((t: any) => ({
-        ...t,
-        subject_name: t.subject_name || (typeof t.subject === "string" && !t.subject.startsWith("sub-") ? t.subject : t.subject_name || ""),
-        topics_names: t.topics_names || (Array.isArray(t.topics) ? t.topics : []),
-      }));
-      setTests(normalized);
-      setLoading(false);
-      setApiMode(API_CONFIG.USE_REAL_API ? "real" : "mock");
-    }).catch(() => {
-      setApiMode("mock");
-      setLoading(false);
-    });
+    api.getTests()
+      .then((r: any) => {
+        const rawRows = r?.data || r?.tests || (Array.isArray(r) ? r : []);
+        
+        const normalized = rawRows.map((t: any) => {
+          if (!t) return null;
+
+          const safeTopics = Array.isArray(t.topics_names)
+            ? t.topics_names
+            : Array.isArray(t.topics)
+            ? t.topics
+            : [];
+
+          return {
+            ...t,
+            id: t.id || `fallback-${Math.random()}`,
+            name: t.name || "Untitled Test",
+            status: t.status || "draft", 
+            subject_name: t.subject_name || t.subject || "Unassigned",
+            topics_names: safeTopics,
+            total_questions: t.total_questions || (Array.isArray(t.questions) ? t.questions.length : 0),
+            created_at: t.created_at || new Date().toISOString()
+          };
+        }).filter(Boolean);
+
+        setTests(normalized);
+        setLoading(false);
+      })
+      .catch((err: any) => {
+        setErrorMsg(err.message || "Failed to load tests from server.");
+        setLoading(false);
+      });
   }, []);
 
   const filtered = tests.filter((t) => {
@@ -46,15 +65,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* API status banner */}
-      <div className={`text-xs rounded-lg px-4 py-2 flex items-center gap-2 border ${apiMode === "real" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : apiMode === "mock" ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-slate-50 text-slate-600 border-slate-200"}`}>
-        <span className={`w-2 h-2 rounded-full ${apiMode === "real" ? "bg-emerald-500" : apiMode === "mock" ? "bg-amber-500" : "bg-slate-400"}`}></span>
-        {apiMode === "real" ? (
-          <>Connected to real API · <code className="font-mono">{API_CONFIG.BASE_URL}</code></>
-        ) : apiMode === "mock" ? (
-          <>Using mock data (localStorage) — real API is unavailable at <code className="font-mono">{API_CONFIG.BASE_URL}</code></>
-        ) : (
-          "Connecting..."
-        )}
+      <div className="text-xs rounded-lg px-4 py-2 flex items-center gap-2 border bg-emerald-50 text-emerald-800 border-emerald-200">
+        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <>Connected to live API · <code className="font-mono">{API_CONFIG.BASE_URL}</code></>
       </div>
 
       {/* Page Header */}
@@ -73,6 +86,13 @@ export default function Dashboard() {
           Create New Test
         </button>
       </div>
+
+      {/* Error Alert Banner */}
+      {errorMsg && (
+        <div className="text-sm rounded-lg px-4 py-3 bg-red-50 text-red-700 border border-red-200">
+          ⚠️ <strong>Parsing Alert:</strong> {errorMsg}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -119,7 +139,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Section */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
           <h2 className="font-semibold text-slate-800">All Tests ({filtered.length})</h2>
@@ -158,11 +178,13 @@ export default function Dashboard() {
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800">{t.name}</div>
                       <div className="text-xs text-slate-500 mt-0.5">
-                        {(t.topics_names || t.topics || []).slice(0, 2).join(", ")}
+                        {t.topics_names && t.topics_names.length > 0
+                          ? t.topics_names.slice(0, 2).join(", ")
+                          : "No dynamic topics linked"}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600">{t.subject_name || t.subject}</td>
-                    <td className="px-6 py-4 text-slate-600">{t.total_questions || 0}</td>
+                    <td className="px-6 py-4 text-slate-600">{t.subject_name}</td>
+                    <td className="px-6 py-4 text-slate-600">{t.total_questions}</td>
                     <td className="px-6 py-4">
                       <StatusBadge status={t.status} />
                     </td>

@@ -21,7 +21,7 @@ type TestData = {
 
 const emptyTest: TestData = {
   name: "",
-  type: "practice",
+  type: "chapterwise", 
   subject: "",
   topics: [],
   sub_topics: [],
@@ -47,61 +47,86 @@ export default function TestCreation() {
   const [savedMsg, setSavedMsg] = useState("");
   const [loading, setLoading] = useState(isEdit);
 
+  // 1. Fetch Master Subjects Dropdown list
   useEffect(() => {
-    api.getSubjects().then((r: any) => setSubjects(r.data));
+    api.getSubjects().then((r: any) => setSubjects(r?.data || []));
   }, []);
 
+  // 2. Fetch and Autopopulate Test Record on Edit
   useEffect(() => {
-    if (!editId) return;
+    if (!editId || subjects.length === 0) return;
     let cancelled = false;
     setLoading(true);
-    api
-      .getTest(editId)
+
+    api.getTest(editId)
       .then((r: any) => {
         if (cancelled || !r?.data) return;
         const t = r.data;
+
+        // Resolve subject value: Handle both text names and raw IDs seamlessly
+        let matchedSubjectId = t.subject || "";
+        const exactMatch = subjects.find(
+          (s) => s.id === t.subject || s.name.toLowerCase() === String(t.subject).toLowerCase()
+        );
+        if (exactMatch) {
+          matchedSubjectId = exactMatch.id;
+        }
+
         setTest({
           name: t.name ?? "",
-          type: t.type ?? "practice",
-          subject: t.subject ?? "",
+          type: t.type ?? "chapterwise",
+          subject: matchedSubjectId,
           topics: Array.isArray(t.topics) ? t.topics : [],
           sub_topics: Array.isArray(t.sub_topics) ? t.sub_topics : [],
-          difficulty: t.difficulty ?? "easy",
+          difficulty: t.difficulty === "difficult" ? "hard" : (t.difficulty ?? "easy"),
           correct_marks: t.correct_marks ?? 4,
           wrong_marks: t.wrong_marks ?? -1,
           unattempt_marks: t.unattempt_marks ?? 0,
           total_time: t.total_time ?? 60,
           total_marks: t.total_marks ?? 100,
           total_questions: t.total_questions ?? 25,
+          status: t.status || "draft"
         });
       })
       .catch((err) => {
-        setErrors({ _: err.message || "Failed to load test" });
+        setErrors({ _: err.message || "Failed to load test details" });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [editId]);
+  }, [editId, subjects]);
 
+  // 3. Dynamic Cascade Loader: Topics
   useEffect(() => {
     if (!test.subject) {
       setTopics([]);
       setSubTopics([]);
       return;
     }
-    api.getTopics(test.subject).then((r: any) => setTopics(r.data));
+    api.getTopics(test.subject).then((r: any) => setTopics(r?.data || []));
   }, [test.subject]);
 
+  // 4. Dynamic Cascade Loader: Sub-topics (Handles text string arrays or UUIDs safely)
   useEffect(() => {
     if (test.topics.length === 0) {
       setSubTopics([]);
       return;
     }
-    api.getSubTopicsByTopics(test.topics).then((r: any) => setSubTopics(r.data));
-  }, [test.topics]);
+    
+    // Convert raw names to database UUID values before hitting the route
+    const resolvedTopicIds = test.topics.map((topicValue) => {
+      const match = topics.find((t) => t.id === topicValue || t.name === topicValue);
+      return match ? match.id : topicValue;
+    });
+
+    api.getSubTopicsByTopics(resolvedTopicIds)
+      .then((r: any) => setSubTopics(r?.data || []))
+      .catch(() => setSubTopics([]));
+  }, [test.topics, topics]);
 
   const update = (k: keyof TestData, v: any) => setTest((prev) => ({ ...prev, [k]: v }));
 
@@ -109,8 +134,7 @@ export default function TestCreation() {
     setTest((prev) => {
       const exists = prev.topics.includes(topicId);
       const newTopics = exists ? prev.topics.filter((t) => t !== topicId) : [...prev.topics, topicId];
-      const validSubTopics = subTopics.filter((st: any) => newTopics.includes(st.topic_id)).map((s: any) => s.id);
-      return { ...prev, topics: newTopics, sub_topics: prev.sub_topics.filter((x) => validSubTopics.includes(x)) };
+      return { ...prev, topics: newTopics, sub_topics: [] }; // Reset child arrays to protect relationships
     });
   };
 
@@ -134,10 +158,52 @@ export default function TestCreation() {
 
   const submit = async (redirectToQuestions: boolean) => {
     if (!validate()) return;
+    
+    const activeSubject = subjects.find(
+      (s) => s.id === test.subject || s.name.toLowerCase() === String(test.subject).toLowerCase()
+    );
+    const finalSubjectUUID = activeSubject ? activeSubject.id : test.subject;
+
+    const finalTopicUUIDs = test.topics.map((topicVal) => {
+      const match = topics.find((t) => t.id === topicVal || t.name === topicVal);
+      return match ? match.id : topicVal;
+    });
+
+    const finalSubTopicUUIDs = test.sub_topics.map((subVal) => {
+      const match = subTopics.find((s) => s.id === subVal || s.name === subVal);
+      return match ? match.id : subVal;
+    });
+
+    // Handle strict non-empty sub_topics restraint during updates
+    if (isEdit && finalSubTopicUUIDs.length === 0) {
+      if (subTopics.length > 0 && subTopics[0].id) {
+        finalSubTopicUUIDs.push(subTopics[0].id);
+      } else {
+        setErrors({ _: "The server requires at least one Sub-topic item to be selected to complete an update." });
+        return;
+      }
+    }
+
     setSaving(true);
+    
     try {
+      const cleanPayload = {
+        name: test.name.trim(),
+        type: test.type,
+        subject: finalSubjectUUID, 
+        topics: finalTopicUUIDs,
+        sub_topics: finalSubTopicUUIDs,
+        difficulty: test.difficulty === "hard" ? "difficult" : test.difficulty,
+        correct_marks: Number(test.correct_marks) || 0,
+        wrong_marks: Number(test.wrong_marks) || 0,
+        unattempt_marks: Number(test.unattempt_marks) || 0,
+        total_time: Number(test.total_time) || 60,
+        total_marks: Number(test.total_marks) || 100,
+        total_questions: Number(test.total_questions) || 25,
+      };
+
       if (isEdit && editId) {
-        await api.updateTest(editId, { ...test, status: test.status ?? "draft" });
+        await api.updateTest(editId, { ...cleanPayload, status: test.status ?? "draft" });
         if (redirectToQuestions) {
           navigate(`/tests/${editId}/questions`);
           return;
@@ -145,11 +211,18 @@ export default function TestCreation() {
         addNotification({
           type: "success",
           title: "Test updated",
-          message: `${test.name} changes were saved successfully.`,
+          message: `${cleanPayload.name} changes were saved successfully.`,
         });
         navigate("/?notifications=1");
       } else {
-        const res = await api.createTest({ ...test, status: null });
+        const submissionSubjectName = activeSubject ? activeSubject.name : test.subject;
+        
+        const res = await api.createTest({ 
+          ...cleanPayload, 
+          subject: submissionSubjectName, 
+          status: "draft" 
+        });
+        
         if (redirectToQuestions) {
           navigate(`/tests/${res.data.id}/questions`);
           return;
@@ -157,12 +230,12 @@ export default function TestCreation() {
         addNotification({
           type: "success",
           title: "Test added",
-          message: `${test.name} was saved as a draft.`,
+          message: `${cleanPayload.name} was saved as a draft.`,
         });
         navigate("/?notifications=1");
       }
     } catch (err: any) {
-      setErrors({ _: err.message });
+      setErrors({ _: err.message || "Server rejected form submission updates." });
     } finally {
       setSaving(false);
       setTimeout(() => setSavedMsg(""), 2500);
@@ -188,25 +261,22 @@ export default function TestCreation() {
           {isEdit ? "Edit Test" : "Create New Test"}
         </h1>
         <p className="text-slate-500 text-sm mt-1">
-          {isEdit
-            ? "Update the test settings. Your changes will be saved."
-            : "Configure your test settings. You can add questions after this step."}
+          {isEdit ? "Update the test settings. Your changes will be saved." : "Configure your test settings."}
         </p>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-2 inline-flex gap-1">
         {[
-          { k: "practice", l: "Chapter Wise" },
+          { k: "chapterwise", l: "Chapter Wise" },
           { k: "pyq", l: "PYQ" },
           { k: "mock", l: "Mock Test" },
         ].map((opt) => (
           <button
             key={opt.k}
+            type="button"
             onClick={() => update("type", opt.k)}
             className={`px-4 py-2 text-sm rounded-lg transition ${
-              test.type === opt.k
-                ? "bg-indigo-50 text-indigo-700 font-semibold"
-                : "text-slate-500 hover:bg-slate-50"
+              test.type === opt.k ? "bg-indigo-50 text-indigo-700 font-semibold" : "text-slate-500 hover:bg-slate-50"
             }`}
           >
             {opt.l}
@@ -245,7 +315,7 @@ export default function TestCreation() {
           <Field label="Topic" required>
             <MultiSelect
               placeholder="Choose topics"
-              options={topics.map((t) => ({ value: t.id, label: t.name }))}
+              options={topics.map((t) => ({ value: t.id || t.name, label: t.name }))}
               selected={test.topics}
               onToggle={toggleTopic}
             />
@@ -254,7 +324,7 @@ export default function TestCreation() {
           <Field label="Sub Topic">
             <MultiSelect
               placeholder="Choose sub-topics"
-              options={subTopics.map((s) => ({ value: s.id, label: s.name }))}
+              options={subTopics.map((s) => ({ value: s.id || s.name, label: s.name }))}
               selected={test.sub_topics}
               onToggle={toggleSubTopic}
             />
@@ -265,7 +335,6 @@ export default function TestCreation() {
               type="number"
               value={test.total_time}
               onChange={(e) => update("total_time", Number(e.target.value))}
-              placeholder="Enter the time"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                 errors.total_time ? "border-red-300" : "border-slate-200"
               }`}
@@ -325,7 +394,6 @@ export default function TestCreation() {
                 type="number"
                 value={test.total_questions}
                 onChange={(e) => update("total_questions", Number(e.target.value))}
-                placeholder="Ex: 50 Questions"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
@@ -335,7 +403,6 @@ export default function TestCreation() {
                 type="number"
                 value={test.total_marks}
                 onChange={(e) => update("total_marks", Number(e.target.value))}
-                placeholder="Ex: 250 Marks"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
@@ -347,33 +414,30 @@ export default function TestCreation() {
             {errors._}
           </div>
         )}
-        {savedMsg && (
-          <div className="mt-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
-            {savedMsg}
-          </div>
-        )}
 
         <div className="mt-10 flex justify-end gap-3">
           <button
+            type="button"
             onClick={() => navigate("/")}
             className="px-6 py-2.5 text-sm font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition"
           >
             Cancel
           </button>
           <button
+            type="button"
             disabled={saving}
             onClick={() => submit(false)}
-            className="px-6 py-2.5 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition disabled:opacity-60"
+            className="px-6 py-2.5 text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition"
           >
-            {isEdit ? "Save Changes" : "Save as Draft"}
+            Save Changes
           </button>
           <button
+            type="button"
             disabled={saving}
             onClick={() => submit(true)}
-            className="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-sm disabled:opacity-60"
+            className="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition shadow-sm"
           >
-            Next: Add Questions
-            <span className="ml-2">→</span>
+            Next: Add Questions →
           </button>
         </div>
       </div>
