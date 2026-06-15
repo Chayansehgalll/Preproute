@@ -31,7 +31,6 @@ A comprehensive test management application for educators and administrators to 
 - **Quick Actions**: Edit, view, delete, or manage questions directly from dashboard
 
 ### 🔒 Authentication & Security
-- **Hardcoded Authentication** for demo purposes
 - **JWT Token Management** with localStorage persistence
 - **Protected Routes** - Only authenticated users can access the app
 
@@ -68,12 +67,6 @@ npm run dev
 npm run build
 ```
 
-### Default Login Credentials
-```
-User ID: vedant_admin
-Password: vedant123
-```
-
 ## 📁 Project Structure
 
 ```
@@ -96,22 +89,6 @@ preproute/
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
-```
-
-## 🌐 API Integration
-
-The application supports both **mock data** (localStorage) and **real API** modes.
-
-### Real API Configuration
-
-Edit `src/services/config.ts`:
-
-```typescript
-export const API_CONFIG = {
-  USE_REAL_API: true,                    // Toggle between real/mock
-  BASE_URL: "https://your-api.com/api",  // Your API endpoint
-  FALLBACK_TO_MOCK_ON_FAILURE: true,     // Fallback on API errors
-};
 ```
 
 ### Supported API Endpoints
@@ -185,12 +162,6 @@ export const API_CONFIG = {
 - **Real-time Notifications** with auto-dismiss
 - **Inline Question Editing** in preview mode
 
-### Visual Feedback
-- Status badges (Draft, Scheduled, Published)
-- Toast notifications for all actions
-- Loading states and spinners
-- Form validation with error messages
-
 ## ⚙️ Configuration Options
 
 ### Environment Variables
@@ -199,16 +170,8 @@ Create `.env` file for environment-specific settings:
 
 ```env
 VITE_API_BASE_URL=https://your-api.com/api
-VITE_USE_MOCK_API=false
 ```
 
-### Customization
-
-**Colors**: Edit Tailwind config or CSS variables in `src/index.css`
-
-**Logo**: Replace SVG in `src/App.tsx` Logo component
-
-**Default Values**: Modify `emptyTest` object in `CreateTest.tsx`
 
 ## 🔧 Development
 
