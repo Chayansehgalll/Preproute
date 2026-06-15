@@ -108,9 +108,6 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
               {loading ? "Signing in..." : "Login"}
             </button>
 
-            <p className="text-xs text-center text-slate-400">
-              Demo credentials: <span className="font-mono text-slate-600">vedant_admin</span> / <span className="font-mono text-slate-600">vedant123</span>
-            </p>
           </form>
         </div>
       </div>

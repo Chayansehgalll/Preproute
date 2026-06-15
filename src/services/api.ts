@@ -173,7 +173,7 @@ export const api = {
         return data;
       },
       async () => {
-        if (userId.trim() !== "vedant_admin" || password !== "vedant123") {
+        if (userId.trim() !== "vedant-admin" || password !== "vedant123") {
           throw new Error("Invalid credentials. Please check your User ID and Password.");
         }
         const token = "mock-jwt-token-preproute";
@@ -186,7 +186,7 @@ export const api = {
           success: true,
           data: {
             token,
-            user: { id: uid("user"), name: "Vedant Admin", role: "Admin", email: userId },
+            user: { id: uid("user"), name: "Vedant BOSS", role: "Admin", email: userId },
           },
         };
       }
