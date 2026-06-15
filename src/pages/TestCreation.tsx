@@ -128,6 +128,36 @@ export default function TestCreation() {
       .catch(() => setSubTopics([]));
   }, [test.topics, topics]);
 
+  // 5. Autopopulate Sync Layer: Convert plain text active topics to UUID matches for checked options
+  useEffect(() => {
+    if (topics.length === 0 || test.topics.length === 0) return;
+    
+    const normalizedTopics = test.topics.map((currVal) => {
+      const match = topics.find((t) => t.name.toLowerCase() === currVal.toLowerCase() || t.id === currVal);
+      return match ? match.id : currVal;
+    });
+
+    const hasChanged = JSON.stringify(normalizedTopics) !== JSON.stringify(test.topics);
+    if (hasChanged) {
+      setTest((prev) => ({ ...prev, topics: normalizedTopics }));
+    }
+  }, [topics]);
+
+  // 6. Autopopulate Sync Layer: Convert plain text active sub-topics to UUID matches for checked options
+  useEffect(() => {
+    if (subTopics.length === 0 || test.sub_topics.length === 0) return;
+
+    const normalizedSubTopics = test.sub_topics.map((currVal) => {
+      const match = subTopics.find((s) => s.name.toLowerCase() === currVal.toLowerCase() || s.id === currVal);
+      return match ? match.id : currVal;
+    });
+
+    const hasChanged = JSON.stringify(normalizedSubTopics) !== JSON.stringify(test.sub_topics);
+    if (hasChanged) {
+      setTest((prev) => ({ ...prev, sub_topics: normalizedSubTopics }));
+    }
+  }, [subTopics]);
+
   const update = (k: keyof TestData, v: any) => setTest((prev) => ({ ...prev, [k]: v }));
 
   const toggleTopic = (topicId: string) => {
@@ -149,6 +179,11 @@ export default function TestCreation() {
     const e: Record<string, string> = {};
     if (!test.name.trim()) e.name = "Test name is required";
     if (!test.subject) e.subject = "Please select a subject";
+    
+    if (!test.sub_topics || test.sub_topics.length === 0) {
+      e.sub_topics = "Please select at least one sub-topic to proceed";
+    }
+    
     if (!test.total_time || test.total_time <= 0) e.total_time = "Enter valid duration";
     if (!test.total_marks || test.total_marks <= 0) e.total_marks = "Enter valid total marks";
     if (!test.total_questions || test.total_questions <= 0) e.total_questions = "Enter valid questions count";
@@ -158,35 +193,24 @@ export default function TestCreation() {
 
   const submit = async (redirectToQuestions: boolean) => {
     if (!validate()) return;
-    
-    const activeSubject = subjects.find(
-      (s) => s.id === test.subject || s.name.toLowerCase() === String(test.subject).toLowerCase()
-    );
-    const finalSubjectUUID = activeSubject ? activeSubject.id : test.subject;
-
-    const finalTopicUUIDs = test.topics.map((topicVal) => {
-      const match = topics.find((t) => t.id === topicVal || t.name === topicVal);
-      return match ? match.id : topicVal;
-    });
-
-    const finalSubTopicUUIDs = test.sub_topics.map((subVal) => {
-      const match = subTopics.find((s) => s.id === subVal || s.name === subVal);
-      return match ? match.id : subVal;
-    });
-
-    // Handle strict non-empty sub_topics restraint during updates
-    if (isEdit && finalSubTopicUUIDs.length === 0) {
-      if (subTopics.length > 0 && subTopics[0].id) {
-        finalSubTopicUUIDs.push(subTopics[0].id);
-      } else {
-        setErrors({ _: "The server requires at least one Sub-topic item to be selected to complete an update." });
-        return;
-      }
-    }
-
     setSaving(true);
     
     try {
+      const activeSubject = subjects.find(
+        (s) => s.id === test.subject || s.name.toLowerCase() === String(test.subject).toLowerCase()
+      );
+      const finalSubjectUUID = activeSubject ? activeSubject.id : test.subject;
+
+      const finalTopicUUIDs = test.topics.map((topicVal) => {
+        const match = topics.find((t) => t.id === topicVal || t.name === topicVal);
+        return match ? match.id : topicVal;
+      });
+
+      const finalSubTopicUUIDs = test.sub_topics.map((subVal) => {
+        const match = subTopics.find((s) => s.id === subVal || s.name === subVal);
+        return match ? match.id : subVal;
+      });
+
       const cleanPayload = {
         name: test.name.trim(),
         type: test.type,
@@ -238,7 +262,6 @@ export default function TestCreation() {
       setErrors({ _: err.message || "Server rejected form submission updates." });
     } finally {
       setSaving(false);
-      setTimeout(() => setSavedMsg(""), 2500);
     }
   };
 
@@ -315,16 +338,16 @@ export default function TestCreation() {
           <Field label="Topic" required>
             <MultiSelect
               placeholder="Choose topics"
-              options={topics.map((t) => ({ value: t.id || t.name, label: t.name }))}
+              options={topics.map((t) => ({ value: t.id, label: t.name }))}
               selected={test.topics}
               onToggle={toggleTopic}
             />
           </Field>
 
-          <Field label="Sub Topic">
+          <Field label="Sub Topic" required error={errors.sub_topics}>
             <MultiSelect
               placeholder="Choose sub-topics"
-              options={subTopics.map((s) => ({ value: s.id || s.name, label: s.name }))}
+              options={subTopics.map((s) => ({ value: s.id, label: s.name }))}
               selected={test.sub_topics}
               onToggle={toggleSubTopic}
             />
