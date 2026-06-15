@@ -183,7 +183,6 @@ export default function AddQuestions() {
     if (newQs.length > 0) {
       await api.bulkCreateQuestions(id!, newQs);
     }
-    // Update total_questions on test
     await api.updateTest(id!, { total_questions: questions.length });
     navigate(`/tests/${id}/preview`);
   };
@@ -203,7 +202,6 @@ export default function AddQuestions() {
         <p className="text-slate-500 text-sm mt-1">Build the question bank for your test.</p>
       </div>
 
-      {/* Test summary card */}
       <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -225,7 +223,6 @@ export default function AddQuestions() {
         </div>
       </div>
 
-      {/* CSV Import */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h3 className="font-semibold text-slate-800">Upload Questions Through CSV</h3>
@@ -256,7 +253,6 @@ export default function AddQuestions() {
         </div>
       </div>
 
-      {/* Question Form */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-slate-800">
@@ -412,7 +408,6 @@ export default function AddQuestions() {
         </div>
       </div>
 
-      {/* Questions List */}
       <div className="bg-white rounded-xl border border-slate-200">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-semibold text-slate-800">Added Questions ({questions.length})</h3>
@@ -460,18 +455,8 @@ export default function AddQuestions() {
 
         <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
           {errors._ && <div className="flex-1 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 self-center">{errors._}</div>}
-          <button
-            onClick={() => navigate("/")}
-            className="px-5 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={saveAndContinue}
-            className="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
-          >
-            Save & Continue →
-          </button>
+          <button onClick={() => navigate("/")} className="px-5 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+          <button onClick={saveAndContinue} className="px-6 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm">Save & Continue →</button>
         </div>
       </div>
 
@@ -488,21 +473,7 @@ function Pill({ children }: { children: React.ReactNode }) {
   return <span className="px-2.5 py-1 bg-white/70 rounded-md border border-indigo-100 text-indigo-800">{children}</span>;
 }
 
-function FormattingBar({
-  onBold,
-  onItalic,
-  onUnderline,
-  onCode,
-  onList,
-  compact,
-}: {
-  onBold: () => void;
-  onItalic: () => void;
-  onUnderline: () => void;
-  onCode: () => void;
-  onList: () => void;
-  compact?: boolean;
-}) {
+function FormattingBar({ onBold, onItalic, onUnderline, onCode, onList, compact }: any) {
   const buttons = [
     { label: "B", title: "Bold", onClick: onBold, className: "font-bold" },
     { label: "I", title: "Italic", onClick: onItalic, className: "italic" },
@@ -513,19 +484,9 @@ function FormattingBar({
   return (
     <div className={`mb-2 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1 ${compact ? "scale-95 origin-left" : ""}`}>
       {buttons.map((button) => (
-        <button
-          key={button.title}
-          type="button"
-          title={button.title}
-          onClick={button.onClick}
-          className={`px-2.5 py-1 text-xs rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 ${button.className}`}
-        >
-          {button.label}
-        </button>
+        <button key={button.title} type="button" title={button.title} onClick={button.onClick} className={`px-2.5 py-1 text-xs rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 ${button.className}`}>{button.label}</button>
       ))}
-      <span className="px-2 text-[11px] text-slate-400 hidden sm:inline">
-        Select text, then click a format.
-      </span>
+      <span className="px-2 text-[11px] text-slate-400 hidden sm:inline">Select text, then click a format.</span>
     </div>
   );
 }
@@ -536,36 +497,29 @@ function parseQuestionsCsv(csv: string): Question[] {
   const headers = rows[0].map((h) => normalizeHeader(h));
   const required = ["question", "option1", "option2", "option3", "option4", "correct_option"];
   const missing = required.filter((key) => !headers.includes(key));
-  if (missing.length > 0) {
-    throw new Error(`Missing required CSV columns: ${missing.join(", ")}`);
-  }
+  if (missing.length > 0) throw new Error(`Missing required CSV columns: ${missing.join(", ")}`);
 
-  return rows
-    .slice(1)
-    .map((row, rowIndex) => {
-      const record: Record<string, string> = {};
-      headers.forEach((header, index) => {
-        record[header] = row[index]?.trim() || "";
-      });
-      const question: Question = {
-        question: record.question || "",
-        option1: record.option1 || "",
-        option2: record.option2 || "",
-        option3: record.option3 || "",
-        option4: record.option4 || "",
-        correct_option: normalizeCorrectOption(record.correct_option),
-        explanation: record.explanation || "",
-        difficulty: normalizeDifficulty(record.difficulty),
-        topic: record.topic || "",
-        sub_topic: record.sub_topic || record.subtopic || "",
-        media_url: record.media_url || record.media || "",
-      };
-      if (!question.question || !question.option1 || !question.option2 || !question.option3 || !question.option4) {
-        throw new Error(`CSV row ${rowIndex + 2} is missing question/options data`);
-      }
-      return question;
-    })
-    .filter((q) => q.question);
+  return rows.slice(1).map((row, rowIndex) => {
+    const record: Record<string, string> = {};
+    headers.forEach((header, index) => { record[header] = row[index]?.trim() || ""; });
+    const question: Question = {
+      question: record.question || "",
+      option1: record.option1 || "",
+      option2: record.option2 || "",
+      option3: record.option3 || "",
+      option4: record.option4 || "",
+      correct_option: normalizeCorrectOption(record.correct_option),
+      explanation: record.explanation || "",
+      difficulty: normalizeDifficulty(record.difficulty),
+      topic: record.topic || "",
+      sub_topic: record.sub_topic || record.subtopic || "",
+      media_url: record.media_url || record.media || "",
+    };
+    if (!question.question || !question.option1 || !question.option2 || !question.option3 || !question.option4) {
+      throw new Error(`CSV row ${rowIndex + 2} is missing question/options data`);
+    }
+    return question;
+  }).filter((q) => q.question);
 }
 
 function parseCsvRows(input: string): string[][] {
@@ -573,58 +527,30 @@ function parseCsvRows(input: string): string[][] {
   let row: string[] = [];
   let cell = "";
   let inQuotes = false;
-
   for (let i = 0; i < input.length; i += 1) {
     const char = input[i];
     const next = input[i + 1];
     if (char === '"') {
-      if (inQuotes && next === '"') {
-        cell += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === "," && !inQuotes) {
-      row.push(cell);
-      cell = "";
-    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (inQuotes && next === '"') { cell += '"'; i += 1; } else { inQuotes = !inQuotes; }
+    } else if (char === "," && !inQuotes) { row.push(cell); cell = ""; }
+    else if ((char === "\n" || char === "\r") && !inQuotes) {
       if (char === "\r" && next === "\n") i += 1;
       row.push(cell);
       if (row.some((value) => value.trim())) rows.push(row);
-      row = [];
-      cell = "";
-    } else {
-      cell += char;
-    }
+      row = []; cell = "";
+    } else { cell += char; }
   }
   row.push(cell);
   if (row.some((value) => value.trim())) rows.push(row);
   return rows;
 }
 
-function normalizeHeader(value: string) {
-  return value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-}
-
+function normalizeHeader(value: string) { return value.trim().toLowerCase().replace(/[\s-]+/g, "_"); }
 function normalizeCorrectOption(value: string) {
   const v = value.trim().toLowerCase();
-  const map: Record<string, string> = {
-    "1": "option1",
-    a: "option1",
-    option1: "option1",
-    "2": "option2",
-    b: "option2",
-    option2: "option2",
-    "3": "option3",
-    c: "option3",
-    option3: "option3",
-    "4": "option4",
-    d: "option4",
-    option4: "option4",
-  };
+  const map: Record<string, string> = { "1": "option1", a: "option1", option1: "option1", "2": "option2", b: "option2", option2: "option2", "3": "option3", c: "option3", option3: "option3", "4": "option4", d: "option4", option4: "option4" };
   return map[v] || "option1";
 }
-
 function normalizeDifficulty(value: string) {
   const v = value.trim().toLowerCase();
   if (["easy", "medium", "hard"].includes(v)) return v;

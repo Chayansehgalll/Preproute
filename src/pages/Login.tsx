@@ -121,63 +121,26 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
 function TestTubeIllustration() {
   return (
     <svg width="520" height="520" viewBox="0 0 520 520" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Desk */}
       <line x1="50" y1="330" x2="470" y2="330" stroke="#1f2937" strokeWidth="6" strokeLinecap="round" />
-      {/* Legs */}
       <line x1="80" y1="330" x2="80" y2="460" stroke="#4b5563" strokeWidth="4" />
       <line x1="140" y1="330" x2="140" y2="460" stroke="#4b5563" strokeWidth="4" />
       <line x1="380" y1="330" x2="380" y2="460" stroke="#4b5563" strokeWidth="4" />
       <line x1="440" y1="330" x2="440" y2="460" stroke="#4b5563" strokeWidth="4" />
-
-      {/* Test tube top */}
       <rect x="220" y="140" width="80" height="30" rx="6" fill="#c7d2fe" stroke="#6366f1" strokeWidth="3" />
-      {/* Tube body */}
-      <path
-        d="M230 170 L230 300 Q230 320 260 320 Q290 320 290 300 L290 170"
-        fill="none"
-        stroke="#475569"
-        strokeWidth="4"
-      />
-      {/* Liquid */}
-      <path
-        d="M232 230 L232 300 Q232 318 260 318 Q288 318 288 300 L288 230 Q260 245 232 230Z"
-        fill="#818cf8"
-        opacity="0.7"
-      />
-      {/* Eyes */}
+      <path d="M230 170 L230 300 Q230 320 260 320 Q290 320 290 300 L290 170" fill="none" stroke="#475569" strokeWidth="4" />
+      <path d="M232 230 L232 300 Q232 318 260 318 Q288 318 288 300 L288 230 Q260 245 232 230Z" fill="#818cf8" opacity="0.7" />
       <circle cx="248" cy="260" r="4" fill="#1f2937" />
       <circle cx="272" cy="260" r="4" fill="#1f2937" />
-      {/* Mouth */}
       <path d="M248 275 Q260 285 272 275" stroke="#1f2937" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-
-      {/* Arm holding laptop */}
-      <path
-        d="M200 310 Q180 310 170 320 L150 330"
-        stroke="#475569"
-        strokeWidth="3"
-        strokeLinecap="round"
-        fill="none"
-      />
+      <path d="M200 310 Q180 310 170 320 L150 330" stroke="#475569" strokeWidth="3" strokeLinecap="round" fill="none" />
       <circle cx="150" cy="330" r="8" fill="#475569" />
-      {/* Hand */}
-      <path
-        d="M200 315 L215 315 Q225 315 225 325 L225 335"
-        stroke="#475569"
-        strokeWidth="3"
-        strokeLinecap="round"
-        fill="none"
-      />
-
-      {/* Laptop */}
+      <path d="M200 315 L215 315 Q225 315 225 325 L225 335" stroke="#475569" strokeWidth="3" strokeLinecap="round" fill="none" />
       <rect x="60" y="260" width="150" height="70" rx="4" fill="#cbd5e1" stroke="#64748b" strokeWidth="3" />
       <rect x="70" y="270" width="130" height="50" rx="2" fill="#e0e7ff" />
       <line x1="55" y1="332" x2="215" y2="332" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
-      {/* Lines on screen */}
       <line x1="80" y1="285" x2="180" y2="285" stroke="#a5b4fc" strokeWidth="2" />
       <line x1="80" y1="295" x2="160" y2="295" stroke="#a5b4fc" strokeWidth="2" />
       <line x1="80" y1="305" x2="170" y2="305" stroke="#a5b4fc" strokeWidth="2" />
-
-      {/* Decorative */}
       <circle cx="120" cy="180" r="4" stroke="#a5b4fc" strokeWidth="2" />
       <circle cx="380" cy="210" r="3" fill="#fbbf24" />
       <circle cx="420" cy="140" r="2" fill="#1e293b" />

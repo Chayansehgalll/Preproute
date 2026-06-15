@@ -87,7 +87,6 @@ function AppShell({ children, user }: { children: React.ReactNode; user: any }) 
         <div className="p-4 border-t border-slate-100 text-xs text-slate-400">v1.0 · PrepRoute</div>
       </aside>
 
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
           <Breadcrumbs />

@@ -112,11 +112,6 @@ async function tryReal<T>(fn: () => Promise<T>, mock: () => Promise<T>): Promise
   }
 }
 
-// Robust token/user extraction from varying server response shapes:
-// - { data: { token, user } }
-// - { token, user }
-// - { data: { accessToken, user } }
-// - { accessToken }
 function extractToken(data: any): string | null {
   if (!data) return null;
   return (
@@ -141,8 +136,6 @@ export const api = {
     await delay(300);
     return tryReal(
       async () => {
-        // Try multiple field-name variants (userId / user_id / email) so we
-        // work with a range of real backend schemas.
         const bodyVariants = [
           { userId, password },
           { user_id: userId, password },
@@ -180,7 +173,6 @@ export const api = {
         return data;
       },
       async () => {
-        // Strict credentials - only these specific values work
         if (userId.trim() !== "vedant_admin" || password !== "vedant123") {
           throw new Error("Invalid credentials. Please check your User ID and Password.");
         }
@@ -405,8 +397,6 @@ export const api = {
   async getQuestionsByTest(testId: string) {
     return tryReal(
       async () => {
-        // Try list endpoint first; if it returns questions with test filtering use it.
-        // Otherwise, attempt a test-details fetch that includes question_ids + bulk fetch.
         const testResp = await apiFetch(`/tests/${testId}`);
         const questionIds = testResp?.data?.questions || [];
         if (questionIds.length === 0) return { success: true, data: [] };

@@ -51,7 +51,6 @@ export default function TestCreation() {
     api.getSubjects().then((r: any) => setSubjects(r.data));
   }, []);
 
-  // Load existing test when editing — preserves all fields
   useEffect(() => {
     if (!editId) return;
     let cancelled = false;
@@ -195,7 +194,6 @@ export default function TestCreation() {
         </p>
       </div>
 
-      {/* Tabs: Chapter Wise / PYQ / Mock Test (visual only) */}
       <div className="bg-white rounded-xl border border-slate-200 p-2 inline-flex gap-1">
         {[
           { k: "practice", l: "Chapter Wise" },
@@ -216,7 +214,6 @@ export default function TestCreation() {
         ))}
       </div>
 
-      {/* Form */}
       <div className="bg-white rounded-xl border border-slate-200 p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Field label="Subject" required error={errors.subject}>
@@ -297,7 +294,6 @@ export default function TestCreation() {
           </Field>
         </div>
 
-        {/* Marking Scheme */}
         <div className="mt-8">
           <h3 className="font-semibold text-slate-800 mb-3">Marking Scheme</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

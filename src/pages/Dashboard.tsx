@@ -13,7 +13,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.getTests().then((r: any) => {
-      // Normalize: real API may return subject/topics as strings or ids
       const normalized = (Array.isArray(r.data) ? r.data : []).map((t: any) => ({
         ...t,
         subject_name: t.subject_name || (typeof t.subject === "string" && !t.subject.startsWith("sub-") ? t.subject : t.subject_name || ""),
