@@ -39,12 +39,12 @@ export default function TestCreation() {
   const { id: editId } = useParams<{ id?: string }>();
   const isEdit = !!editId;
   const [test, setTest] = useState<TestData>(emptyTest);
+  const [rawTestCopy, setRawTestCopy] = useState<any>(null); 
   const [subjects, setSubjects] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
   const [subTopics, setSubTopics] = useState<any[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [savedMsg, setSavedMsg] = useState("");
   const [loading, setLoading] = useState(isEdit);
 
   // 1. Fetch Master Subjects Dropdown list
@@ -59,34 +59,70 @@ export default function TestCreation() {
     setLoading(true);
 
     api.getTest(editId)
-      .then((r: any) => {
+      .then(async (r: any) => {
         if (cancelled || !r?.data) return;
         const t = r.data;
+        setRawTestCopy(t); 
 
-        // Resolve subject value: Handle both text names and raw IDs seamlessly
         let matchedSubjectId = t.subject || "";
-        const exactMatch = subjects.find(
-          (s) => s.id === t.subject || s.name.toLowerCase() === String(t.subject).toLowerCase()
-        );
+        const exactMatch = subjects.find((s) => {
+          const sName = String(s.name).trim().toLowerCase();
+          const tSub = String(t.subject).trim().toLowerCase();
+          return (
+            s.id === t.subject || 
+            sName === tSub || 
+            (sName.startsWith("math") && tSub.startsWith("math"))
+          );
+        });
         if (exactMatch) {
           matchedSubjectId = exactMatch.id;
         }
 
-        setTest({
-          name: t.name ?? "",
-          type: t.type ?? "chapterwise",
-          subject: matchedSubjectId,
-          topics: Array.isArray(t.topics) ? t.topics : [],
-          sub_topics: Array.isArray(t.sub_topics) ? t.sub_topics : [],
-          difficulty: t.difficulty === "difficult" ? "hard" : (t.difficulty ?? "easy"),
-          correct_marks: t.correct_marks ?? 4,
-          wrong_marks: t.wrong_marks ?? -1,
-          unattempt_marks: t.unattempt_marks ?? 0,
-          total_time: t.total_time ?? 60,
-          total_marks: t.total_marks ?? 100,
-          total_questions: t.total_questions ?? 25,
-          status: t.status || "draft"
+        // Fetch valid topics map context synchronously for this subject
+        const masterTopicsRes = await api.getTopics(matchedSubjectId);
+        const masterTopicsList = masterTopicsRes?.data || [];
+        if (!cancelled) setTopics(masterTopicsList);
+
+        const incomingTopics = Array.isArray(t.topics) ? t.topics : [];
+        const normalizedTopicUUIDs = incomingTopics.map((currVal: string) => {
+          const match = masterTopicsList.find(
+            (topItem: any) => topItem.id === currVal || topItem.name.toLowerCase() === currVal.toLowerCase()
+          );
+          return match ? match.id : currVal;
         });
+
+        let masterSubTopicsList: any[] = [];
+        if (normalizedTopicUUIDs.length > 0) {
+          const subRes = await api.getSubTopicsByTopics(normalizedTopicUUIDs);
+          masterSubTopicsList = subRes?.data || [];
+          if (!cancelled) setSubTopics(masterSubTopicsList);
+        }
+
+        const incomingSubTopics = Array.isArray(t.sub_topics) ? t.sub_topics : [];
+        const normalizedSubTopicUUIDs = incomingSubTopics.map((currVal: string) => {
+          const match = masterSubTopicsList.find(
+            (subItem: any) => subItem.id === currVal || subItem.name.toLowerCase() === currVal.toLowerCase()
+          );
+          return match ? match.id : currVal;
+        });
+
+        if (!cancelled) {
+          setTest({
+            name: t.name ?? "",
+            type: t.type ?? "chapterwise",
+            subject: matchedSubjectId,
+            topics: normalizedTopicUUIDs,
+            sub_topics: normalizedSubTopicUUIDs,
+            difficulty: t.difficulty === "difficult" ? "hard" : (t.difficulty ?? "easy"),
+            correct_marks: t.correct_marks ?? 4,
+            wrong_marks: t.wrong_marks ?? -1,
+            unattempt_marks: t.unattempt_marks ?? 0,
+            total_time: t.total_time ?? 60,
+            total_marks: t.total_marks ?? 100,
+            total_questions: t.total_questions ?? 25,
+            status: t.status || "draft"
+          });
+        }
       })
       .catch((err) => {
         setErrors({ _: err.message || "Failed to load test details" });
@@ -100,63 +136,17 @@ export default function TestCreation() {
     };
   }, [editId, subjects]);
 
-  // 3. Dynamic Cascade Loader: Topics
   useEffect(() => {
-    if (!test.subject) {
-      setTopics([]);
-      setSubTopics([]);
-      return;
-    }
+    if (isEdit || !test.subject) return;
     api.getTopics(test.subject).then((r: any) => setTopics(r?.data || []));
-  }, [test.subject]);
+  }, [test.subject, isEdit]);
 
-  // 4. Dynamic Cascade Loader: Sub-topics (Handles text string arrays or UUIDs safely)
   useEffect(() => {
-    if (test.topics.length === 0) {
-      setSubTopics([]);
-      return;
-    }
-    
-    // Convert raw names to database UUID values before hitting the route
-    const resolvedTopicIds = test.topics.map((topicValue) => {
-      const match = topics.find((t) => t.id === topicValue || t.name === topicValue);
-      return match ? match.id : topicValue;
-    });
-
-    api.getSubTopicsByTopics(resolvedTopicIds)
+    if (isEdit || test.topics.length === 0) return;
+    api.getSubTopicsByTopics(test.topics)
       .then((r: any) => setSubTopics(r?.data || []))
       .catch(() => setSubTopics([]));
-  }, [test.topics, topics]);
-
-  // 5. Autopopulate Sync Layer: Convert plain text active topics to UUID matches for checked options
-  useEffect(() => {
-    if (topics.length === 0 || test.topics.length === 0) return;
-    
-    const normalizedTopics = test.topics.map((currVal) => {
-      const match = topics.find((t) => t.name.toLowerCase() === currVal.toLowerCase() || t.id === currVal);
-      return match ? match.id : currVal;
-    });
-
-    const hasChanged = JSON.stringify(normalizedTopics) !== JSON.stringify(test.topics);
-    if (hasChanged) {
-      setTest((prev) => ({ ...prev, topics: normalizedTopics }));
-    }
-  }, [topics]);
-
-  // 6. Autopopulate Sync Layer: Convert plain text active sub-topics to UUID matches for checked options
-  useEffect(() => {
-    if (subTopics.length === 0 || test.sub_topics.length === 0) return;
-
-    const normalizedSubTopics = test.sub_topics.map((currVal) => {
-      const match = subTopics.find((s) => s.name.toLowerCase() === currVal.toLowerCase() || s.id === currVal);
-      return match ? match.id : currVal;
-    });
-
-    const hasChanged = JSON.stringify(normalizedSubTopics) !== JSON.stringify(test.sub_topics);
-    if (hasChanged) {
-      setTest((prev) => ({ ...prev, sub_topics: normalizedSubTopics }));
-    }
-  }, [subTopics]);
+  }, [test.topics, isEdit]);
 
   const update = (k: keyof TestData, v: any) => setTest((prev) => ({ ...prev, [k]: v }));
 
@@ -164,8 +154,9 @@ export default function TestCreation() {
     setTest((prev) => {
       const exists = prev.topics.includes(topicId);
       const newTopics = exists ? prev.topics.filter((t) => t !== topicId) : [...prev.topics, topicId];
-      return { ...prev, topics: newTopics, sub_topics: [] }; // Reset child arrays to protect relationships
+      return { ...prev, topics: newTopics, sub_topics: [] }; 
     });
+    if (!isEdit) setSubTopics([]);
   };
 
   const toggleSubTopic = (id: string) => {
@@ -194,29 +185,17 @@ export default function TestCreation() {
   const submit = async (redirectToQuestions: boolean) => {
     if (!validate()) return;
     setSaving(true);
+    setErrors({});
     
     try {
-      const activeSubject = subjects.find(
-        (s) => s.id === test.subject || s.name.toLowerCase() === String(test.subject).toLowerCase()
-      );
-      const finalSubjectUUID = activeSubject ? activeSubject.id : test.subject;
-
-      const finalTopicUUIDs = test.topics.map((topicVal) => {
-        const match = topics.find((t) => t.id === topicVal || t.name === topicVal);
-        return match ? match.id : topicVal;
-      });
-
-      const finalSubTopicUUIDs = test.sub_topics.map((subVal) => {
-        const match = subTopics.find((s) => s.id === subVal || s.name === subVal);
-        return match ? match.id : subVal;
-      });
+      const fallbackDate = rawTestCopy?.created_at || new Date().toISOString();
 
       const cleanPayload = {
         name: test.name.trim(),
         type: test.type,
-        subject: finalSubjectUUID, 
-        topics: finalTopicUUIDs,
-        sub_topics: finalSubTopicUUIDs,
+        subject: test.subject, 
+        topics: test.topics,
+        sub_topics: test.sub_topics,
         difficulty: test.difficulty === "hard" ? "difficult" : test.difficulty,
         correct_marks: Number(test.correct_marks) || 0,
         wrong_marks: Number(test.wrong_marks) || 0,
@@ -224,10 +203,18 @@ export default function TestCreation() {
         total_time: Number(test.total_time) || 60,
         total_marks: Number(test.total_marks) || 100,
         total_questions: Number(test.total_questions) || 25,
+        
+        slot: (rawTestCopy?.slot !== null && rawTestCopy?.slot !== undefined) ? Number(rawTestCopy.slot) : 0,
+        hidden_from_moderator: (rawTestCopy?.hidden_from_moderator !== null && rawTestCopy?.hidden_from_moderator !== undefined) ? Boolean(rawTestCopy.hidden_from_moderator) : false,
+        paragraph_question: Array.isArray(rawTestCopy?.paragraph_question) ? rawTestCopy.paragraph_question : [],
+        scheduled_date: rawTestCopy?.scheduled_date || fallbackDate,
+        expiry_date: rawTestCopy?.expiry_date || fallbackDate,
+        questions: Array.isArray(rawTestCopy?.questions) ? rawTestCopy.questions : []
       };
 
       if (isEdit && editId) {
         await api.updateTest(editId, { ...cleanPayload, status: test.status ?? "draft" });
+
         if (redirectToQuestions) {
           navigate(`/tests/${editId}/questions`);
           return;
@@ -239,11 +226,8 @@ export default function TestCreation() {
         });
         navigate("/?notifications=1");
       } else {
-        const submissionSubjectName = activeSubject ? activeSubject.name : test.subject;
-        
         const res = await api.createTest({ 
           ...cleanPayload, 
-          subject: submissionSubjectName, 
           status: "draft" 
         });
         
@@ -259,8 +243,8 @@ export default function TestCreation() {
         navigate("/?notifications=1");
       }
     } catch (err: any) {
-      setErrors({ _: err.message || "Server rejected form submission updates." });
-    } finally {
+      setErrors({ _: err.message || "Failed to update test details. Verify payload structures." });
+    } compression: {
       setSaving(false);
     }
   };
@@ -312,7 +296,10 @@ export default function TestCreation() {
           <Field label="Subject" required error={errors.subject}>
             <select
               value={test.subject}
-              onChange={(e) => update("subject", e.target.value)}
+              onChange={(e) => {
+                update("subject", e.target.value);
+                if(!isEdit) { update("topics", []); update("sub_topics", []); }
+              }}
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white ${
                 errors.subject ? "border-red-300" : "border-slate-200"
               }`}
