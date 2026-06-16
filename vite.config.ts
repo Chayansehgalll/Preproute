@@ -14,6 +14,16 @@ export default defineConfig({
   build: {
     sourcemap: false, // Ensures original TS code isn't exposed in browser DevTools
   },
+  server: {
+    proxy: {
+      // Intercepts any local outbound request starting with /api
+      '/api': {
+        target: 'https://admin-moderator-backend-staging.up.railway.app',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

@@ -64,12 +64,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* API status banner */}
-      <div className="text-xs rounded-lg px-4 py-2 flex items-center gap-2 border bg-emerald-50 text-emerald-800 border-emerald-200">
-        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <>Connected to live API · <code className="font-mono">{API_CONFIG.BASE_URL}</code></>
-      </div>
-
       {/* Page Header */}
       <div className="flex items-start justify-between">
         <div>

@@ -1,6 +1,5 @@
-// API configuration - production backend gateway
 export const API_CONFIG = {
-  BASE_URL: "https://admin-moderator-backend-staging.up.railway.app/api",
+  BASE_URL: "/api",
 };
 
 export async function apiFetch(
@@ -17,7 +16,11 @@ export async function apiFetch(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
+  const targetUrl = endpoint.startsWith("/") 
+    ? `${API_CONFIG.BASE_URL}${endpoint}` 
+    : `${API_CONFIG.BASE_URL}/${endpoint}`;
+
+  const res = await fetch(targetUrl, {
     ...options,
     headers,
   });

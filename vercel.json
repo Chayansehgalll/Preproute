@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/:path*",
+      "destination": "https://admin-moderator-backend-staging.up.railway.app/api/:path*"
     }
   ]
 }
